@@ -6,7 +6,7 @@ function getProperties (env) {
 	if (env === 'DEV') {
 		return {
 			ENVIRONMENT: env,
-			HOST: 'https://csg.uzh.ch/bazo/api'
+			HOST: 'https://api.altnet.rippletest.net:5990/v1'
 		};
 	} else if (env === 'TEST') {
 		return {

@@ -3,7 +3,6 @@ import Vuex from 'vuex';
 import PersistedState from 'vuex-persistedstate'
 import HttpService from '@/services/HttpService';
 import Translation from '@/config/Translation';
-
 Vue.use(Vuex);
 
 const helpers = {
@@ -41,7 +40,7 @@ const store = new Vuex.Store({
     settings: {
       showAdvancedOptions: 'hidden',
       useCustomHost: 'false',
-      customURL: 'https://csg.uzh.ch/bazo/api'
+      customURL: 'wss://s.altnet.rippletest.net:51233'
     },
     surpriseRequests: [],
 		offline: !(typeof window.navigator.onLine === 'undefined' ||
@@ -87,7 +86,7 @@ const store = new Vuex.Store({
       for (var i = 0; i < state.config.accounts.length; i++) {
         let candidate = state.config.accounts[i].balance;
         if (!isNaN(candidate)) {
-          sum += candidate
+          sum += Number(candidate)
         }
       }
       return sum;
@@ -159,13 +158,7 @@ const store = new Vuex.Store({
 			state.offline = offline;
 		},
     setAccountBalance: function (state, accountData) {
-      // eslint-disable-next-line
-      var accountToUpdateBalance = helpers.findAccountByAddress(
-        state.config.accounts, accountData.address
-      );
-      // Overwrite the existing completely in order to make sure that the
-      // reactivity system works as expected
-      accountToUpdateBalance = {...accountToUpdateBalance, balance: accountData.balance}
+      state.config.accounts[0].balance = accountData.balance
     },
     updateTimeStamp: function (state) {
       state.config.updatedBalances = new Date();
@@ -182,47 +175,16 @@ const store = new Vuex.Store({
 		updateUserBalance: function (context, options) {
       let addresses = context.state.config.accounts.map(account => account.bazoaddress);
       if (addresses.length > 0) {
-        HttpService.queryAccountInfo(addresses, options.url, options.silent).then((responses) => {
-          let accountMutationsFound = false;
-          responses.forEach((res) => {
-            if (res.body.address) {
-              let accountToUpdateBalance = helpers.findAccountByAddress(
-                context.state.config.accounts, res.body.address
-              );
-              if (accountToUpdateBalance.balance !== res.body.balance) {
-                accountMutationsFound = true;
-              }
-              accountToUpdateBalance.balance = res.body.balance
-              context.commit('setAccountBalance', {balance: res.body.balance, address: res.body.address})
-            }
-          })
-            context.commit('updateTimeStamp');
-            if (!options.silent) {
-              Vue.toasted.global.success(Translation.t('userAccounts.alerts.completeQuery'));
-            }
-            try {
-              if (Notification && Notification.permission === 'granted' && (document.visibilityState !== 'visible' || !location.href.match(/accounts/))) {
-                  if (accountMutationsFound) {
-                    let notification = new Notification('OySy Wallet', {
-                        icon: '/static/img/icons/android-chrome-192x192.png',
-                        body: Translation.t('userAccounts.alerts.accountMutationDetected')
-                    })
-                    notification.onclick = function (event) {
-                      event.preventDefault();
-                      window.open(location.href.split('#')[0] + '#/accounts', '_blank')
-                    }
-                  }
-              }
-            } catch (e) {
-              if (!options.silent && accountMutationsFound) {
-                Vue.toasted.global.success(Translation.t('userAccounts.alerts.accountMutationDetected'));
-              }
-            }
+        HttpService.getBalances(addresses[0], options.url, options.silent).then((res) => {
+          context.commit('updateTimeStamp');
+          if (!options.silent) {
+            Vue.toasted.global.success(Translation.t('userAccounts.alerts.completeQuery'));
+          }
+          window.res = res
+          console.log('updating acc', addresses[0], 'with bal', res.data.balances[0].value);
+          context.commit('setAccountBalance', {balance: res.data.balances[0].value, address: addresses[0]})
         }).catch((err) => {
           console.log(err);
-          if (!options.silent) {
-            Vue.toasted.global.error(Translation.t('userAccounts.alerts.failedConnection'));
-          }
         });
       }
 		},

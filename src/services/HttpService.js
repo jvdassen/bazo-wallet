@@ -25,6 +25,9 @@ const HttpService = {
       })
     }
   },
+  getBalances: function (accountAddress, host, silent) {
+    return axios.get(`${properties.HOST}/accounts/${accountAddress}/balances`)
+  },
   queryAccountInfo: function (accountAddresses, host, silent) {
     let hostbase = `${host || properties.HOST}`
     let url = HttpService.formatHost(hostbase) + 'account/'
